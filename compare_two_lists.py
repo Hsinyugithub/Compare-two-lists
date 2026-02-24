@@ -3,8 +3,6 @@ from typing import List, Set, Tuple
 
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
-from matplotlib_venn import venn2
 
 
 # -----------------------------
@@ -74,7 +72,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Compare Two Lists with a Venn Diagram")
+st.title("Compare Two Lists")
 
 
 # -----------------------------
@@ -175,41 +173,6 @@ overlap_coeff = (
 st.markdown(
     f"**Jaccard Similarity:** {jaccard:.3f} ({jaccard:.1%})  \n"
     f"**Overlap Coefficient:** {overlap_coeff:.3f}"
-)
-
-
-# -----------------------------
-# Venn Diagram
-# -----------------------------
-st.markdown("### 🟣 Venn Diagram")
-
-fig, ax = plt.subplots()
-
-venn = venn2(
-    subsets=(len(A_only_norm), len(B_only_norm), len(inter_norm)),
-    set_labels=(label_a, label_b),
-    ax=ax
-)
-
-for text in venn.set_labels:
-    text.set_fontsize(12)
-
-for text in venn.subset_labels:
-    if text:
-        text.set_fontsize(12)
-
-ax.set_title("Set Comparison", fontsize=14)
-
-st.pyplot(fig)
-
-# PNG export
-buf = io.BytesIO()
-fig.savefig(buf, format="png", dpi=300)
-st.download_button(
-    "Download Venn as PNG",
-    buf.getvalue(),
-    "venn.png",
-    "image/png"
 )
 
 

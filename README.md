@@ -1,87 +1,65 @@
-# 🔍 List Comparator
+# List Comparator (Streamlit App)
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
-![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green)
+A lightweight and interactive Streamlit application for comparing two
+lists using set operations.
 
-A lightweight Streamlit web app for comparing two lists using set
-operations and a Venn diagram.
+## Features
 
-Perfect for gene list overlap, ID comparison, dataset reconciliation,
-and general set analysis.
-
-------------------------------------------------------------------------
-
-## 🚀 Features
-
--   Compare two lists side-by-side
--   Multiple delimiter support (newline, comma, semicolon, whitespace,
+-   Flexible delimiter handling (newline, comma, semicolon, whitespace,
     custom)
 -   Case-sensitive or case-insensitive comparison
 -   Optional whitespace trimming
--   Deduplication toggle
--   Interactive Venn diagram
--   Region exploration (A only / B only / Intersection)
--   Jaccard similarity score
+-   Optional deduplication
+-   Optional alphabetical sorting
+-   Summary metrics
+-   Jaccard similarity
+-   Overlap coefficient
+-   Interactive region explorer
 -   Download results as TXT or CSV
--   Efficient set operations (handles large lists)
 
 ------------------------------------------------------------------------
 
-## 📦 Installation
+## Installation
 
-### 1️⃣ Clone the repository
+Clone the repository or download the app script.
 
-git clone https://github.com/your-username/list-comparator.git\
-cd list-comparator
+Install dependencies:
 
-### 2️⃣ Create virtual environment (recommended)
-
-python -m venv venv
-
-Activate:
-
-Mac / Linux: source venv/bin/activate
-
-Windows: venv`\Scripts`{=tex}`\activate`{=tex}
-
-### 3️⃣ Install dependencies
-
+``` bash
 pip install -r requirements.txt
+```
 
 ------------------------------------------------------------------------
 
-## ▶️ Run the App
+## Run the App
 
-streamlit run list_comparator.py
+``` bash
+streamlit run app.py
+```
 
-Open in browser:
-
-http://localhost:8501
-
-------------------------------------------------------------------------
-
-## 📁 Project Structure
-
-. ├── list_comparator.py ├── requirements.txt └── README.md
+Replace `app.py` with your script filename if different.
 
 ------------------------------------------------------------------------
 
-## 📈 Similarity Metric
+## Similarity Metrics
 
-Jaccard similarity:
+**Jaccard Similarity**\
+Intersection ÷ Union
 
-\|A ∩ B\| / \|A ∪ B\|
+**Overlap Coefficient**\
+Intersection ÷ Smaller set size
 
 ------------------------------------------------------------------------
 
-## 📝 License
+## Example Use Cases
+
+-   Comparing gene lists
+-   Comparing accession IDs
+-   Comparing ontology term sets
+-   General text-based list comparison
+
+------------------------------------------------------------------------
+
+## License
 
 MIT License
-
-------------------------------------------------------------------------
-
-## 👤 Author
-
-Your Name\
-GitHub: https://github.com/your-username
