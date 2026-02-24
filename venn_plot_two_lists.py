@@ -20,7 +20,6 @@ def parse_list(
 
     text = text or ""
 
-    # Choose splitting strategy
     if delim_mode == "newline":
         parts = text.splitlines()
     elif delim_mode == "comma":
@@ -46,26 +45,17 @@ def parse_list(
     return cleaned, set(norm)
 
 
-def normalize_list(lst: List[str], case_sensitive: bool):
-    return lst if case_sensitive else [x.casefold() for x in lst]
-
-
-def recover_items(original_list: List[str], normalized_set: Set[str], case_sensitive: bool):
-    norm_list = normalize_list(original_list, case_sensitive)
-    result, seen = [], set()
-
+def build_norm_map(original_list: List[str], case_sensitive: bool):
+    norm_list = original_list if case_sensitive else [x.casefold() for x in original_list]
+    mapping = {}
     for raw, norm in zip(original_list, norm_list):
-        if norm in normalized_set and norm not in seen:
-            result.append(raw)
-            seen.add(norm)
-
-    return result
+        mapping.setdefault(norm, raw)
+    return mapping
 
 
 def make_download(name: str, items: List[str]):
     buf = io.StringIO()
     buf.write("\n".join(items))
-
     st.download_button(
         label=f"Download {name} (TXT)",
         data=buf.getvalue(),
@@ -76,18 +66,19 @@ def make_download(name: str, items: List[str]):
 
 
 # -----------------------------
-# Streamlit App
+# App Config
 # -----------------------------
 st.set_page_config(
     page_title="List Comparator",
     page_icon="🔍",
-    layout="centered"
+    layout="wide"
 )
 
 st.title("Compare Two Lists with a Venn Diagram")
 
+
 # -----------------------------
-# Sidebar Settings
+# Sidebar
 # -----------------------------
 with st.sidebar:
     st.header("⚙️ Settings")
@@ -105,10 +96,11 @@ with st.sidebar:
     case_sensitive = st.checkbox("Case sensitive comparison", False)
     strip_items = st.checkbox("Trim whitespace", True)
     deduplicate = st.checkbox("Deduplicate results", True)
+    sort_results = st.checkbox("Sort output alphabetically", False)
 
 
 # -----------------------------
-# Input Area
+# Input
 # -----------------------------
 st.markdown("### Input Your Lists")
 
@@ -122,35 +114,40 @@ with colB:
 
 
 # -----------------------------
-# Parse Lists
+# Parse
 # -----------------------------
 listA_raw, setA_norm = parse_list(
-    text_a, delim_mode, custom_delim,
-    case_sensitive, strip_items
+    text_a, delim_mode, custom_delim, case_sensitive, strip_items
 )
 
 listB_raw, setB_norm = parse_list(
-    text_b, delim_mode, custom_delim,
-    case_sensitive, strip_items
+    text_b, delim_mode, custom_delim, case_sensitive, strip_items
 )
 
+norm_map_A = build_norm_map(listA_raw, case_sensitive)
+norm_map_B = build_norm_map(listB_raw, case_sensitive)
+
+
 # -----------------------------
-# Set Operations (efficient)
+# Set Operations
 # -----------------------------
 inter_norm = setA_norm & setB_norm
 A_only_norm = setA_norm - setB_norm
 B_only_norm = setB_norm - setA_norm
 
-# Recover user-facing lists
-A_only = recover_items(listA_raw, A_only_norm, case_sensitive)
-B_only = recover_items(listB_raw, B_only_norm, case_sensitive)
-intersect = recover_items(listA_raw, inter_norm, case_sensitive)
+A_only = [norm_map_A[n] for n in A_only_norm]
+B_only = [norm_map_B[n] for n in B_only_norm]
+intersect = [norm_map_A[n] for n in inter_norm]
 
-# Deduplicate display lists if requested
 if deduplicate:
     A_only = list(dict.fromkeys(A_only))
     B_only = list(dict.fromkeys(B_only))
     intersect = list(dict.fromkeys(intersect))
+
+if sort_results:
+    A_only.sort()
+    B_only.sort()
+    intersect.sort()
 
 
 # -----------------------------
@@ -159,18 +156,26 @@ if deduplicate:
 st.markdown("### 📊 Summary")
 
 col1, col2, col3 = st.columns(3)
-col1.metric(f"{label_a} only", len(A_only))
-col2.metric("Intersection", len(intersect))
-col3.metric(f"{label_b} only", len(B_only))
+col1.metric(f"{label_a} only", len(A_only_norm))
+col2.metric("Intersection", len(inter_norm))
+col3.metric(f"{label_b} only", len(B_only_norm))
 
 
 # -----------------------------
-# Similarity Score
+# Similarity Metrics
 # -----------------------------
-union_size = len(setA_norm | setB_norm)
-jaccard = len(inter_norm) / union_size if union_size > 0 else 0
+union_norm = setA_norm | setB_norm
+jaccard = len(inter_norm) / len(union_norm) if union_norm else 0.0
 
-st.markdown(f"**Jaccard Similarity:** {jaccard:.3f}")
+overlap_coeff = (
+    len(inter_norm) / min(len(setA_norm), len(setB_norm))
+    if min(len(setA_norm), len(setB_norm)) > 0 else 0.0
+)
+
+st.markdown(
+    f"**Jaccard Similarity:** {jaccard:.3f} ({jaccard:.1%})  \n"
+    f"**Overlap Coefficient:** {overlap_coeff:.3f}"
+)
 
 
 # -----------------------------
@@ -180,27 +185,42 @@ st.markdown("### 🟣 Venn Diagram")
 
 fig, ax = plt.subplots()
 
-venn2(
-    subsets=(len(A_only), len(B_only), len(intersect)),
+venn = venn2(
+    subsets=(len(A_only_norm), len(B_only_norm), len(inter_norm)),
     set_labels=(label_a, label_b),
     ax=ax
 )
 
+for text in venn.set_labels:
+    text.set_fontsize(12)
+
+for text in venn.subset_labels:
+    if text:
+        text.set_fontsize(12)
+
+ax.set_title("Set Comparison", fontsize=14)
+
 st.pyplot(fig)
+
+# PNG export
+buf = io.BytesIO()
+fig.savefig(buf, format="png", dpi=300)
+st.download_button(
+    "Download Venn as PNG",
+    buf.getvalue(),
+    "venn.png",
+    "image/png"
+)
 
 
 # -----------------------------
-# Interactive Region Selection
+# Region Explorer
 # -----------------------------
 st.markdown("### 🔍 Explore Region")
 
 region = st.radio(
-    "Select region to inspect:",
-    (
-        f"{label_a} only",
-        "Intersection",
-        f"{label_b} only"
-    ),
+    "Select region:",
+    (f"{label_a} only", "Intersection", f"{label_b} only"),
     horizontal=True
 )
 
@@ -225,11 +245,11 @@ if selected_items:
 
     csv_data = df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="Download CSV",
-        data=csv_data,
-        file_name=f"{region.replace(' ', '_')}.csv",
-        mime="text/csv",
+        "Download CSV",
+        csv_data,
+        f"{region.replace(' ', '_')}.csv",
+        "text/csv",
         use_container_width=True
     )
 else:
-    st.info("No items in this category.")
+    st.success("✔ No items in this category.")
