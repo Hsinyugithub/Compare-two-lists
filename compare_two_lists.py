@@ -6,6 +6,20 @@ import streamlit as st
 
 
 # -----------------------------
+# Callbacks for Clearing State
+# -----------------------------
+def clear_a():
+    st.session_state.text_a = ""
+
+def clear_b():
+    st.session_state.text_b = ""
+
+def clear_all():
+    st.session_state.text_a = ""
+    st.session_state.text_b = ""
+
+
+# -----------------------------
 # Utilities
 # -----------------------------
 def parse_list(
@@ -15,7 +29,9 @@ def parse_list(
     case_sensitive: bool,
     strip_items: bool,
 ) -> Tuple[List[str], Set[str]]:
-
+    """
+    Parses the raw text into a cleaned list and a normalized set.
+    """
     text = text or ""
 
     if delim_mode == "newline":
@@ -44,6 +60,9 @@ def parse_list(
 
 
 def build_norm_map(original_list: List[str], case_sensitive: bool):
+    """
+    Builds a mapping from normalized value -> first-seen original value.
+    """
     norm_list = original_list if case_sensitive else [x.casefold() for x in original_list]
     mapping = {}
     for raw, norm in zip(original_list, norm_list):
@@ -67,22 +86,30 @@ def make_download(name: str, items: List[str]):
 # App Config
 # -----------------------------
 st.set_page_config(
-    page_title="List Comparator",
+    page_title="List Comparator Pro",
     page_icon="🔍",
     layout="wide"
 )
 
-st.title("Compare Two Lists")
+st.title("🔍 Compare Two Lists")
+
+# Initialize session state keys
+if "text_a" not in st.session_state:
+    st.session_state.text_a = ""
+if "text_b" not in st.session_state:
+    st.session_state.text_b = ""
 
 
 # -----------------------------
-# Sidebar
+# Sidebar Settings
 # -----------------------------
 with st.sidebar:
     st.header("⚙️ Settings")
 
     label_a = st.text_input("Label for List A", "List A")
     label_b = st.text_input("Label for List B", "List B")
+
+    st.divider()
 
     delim_mode = st.selectbox(
         "Delimiter",
@@ -96,39 +123,55 @@ with st.sidebar:
     deduplicate = st.checkbox("Deduplicate results", True)
     sort_results = st.checkbox("Sort output alphabetically", False)
 
+    st.divider()
+    
+    # Clear both button using callback
+    st.button("🧹 Clear Both Lists", on_click=clear_all, use_container_width=True)
+
 
 # -----------------------------
-# Input
+# Input Section
 # -----------------------------
-st.markdown("### Input Your Lists")
+st.markdown("### 📥 Input Your Lists")
 
 colA, colB = st.columns(2)
 
 with colA:
-    text_a = st.text_area(f"{label_a} items", height=250)
+    # Key links the widget directly to st.session_state.text_a
+    st.text_area(
+        label=f"{label_a} items",
+        key="text_a",
+        height=250,
+        placeholder="Paste items here...",
+    )
+    st.button(f"Clear {label_a}", on_click=clear_a, use_container_width=True)
 
 with colB:
-    text_b = st.text_area(f"{label_b} items", height=250)
+    st.text_area(
+        label=f"{label_b} items",
+        key="text_b",
+        height=250,
+        placeholder="Paste items here...",
+    )
+    st.button(f"Clear {label_b}", on_click=clear_b, use_container_width=True)
 
 
 # -----------------------------
-# Parse
+# Processing logic
 # -----------------------------
+# We pull values directly from session state
 listA_raw, setA_norm = parse_list(
-    text_a, delim_mode, custom_delim, case_sensitive, strip_items
+    st.session_state.text_a, delim_mode, custom_delim, case_sensitive, strip_items
 )
 
 listB_raw, setB_norm = parse_list(
-    text_b, delim_mode, custom_delim, case_sensitive, strip_items
+    st.session_state.text_b, delim_mode, custom_delim, case_sensitive, strip_items
 )
 
 norm_map_A = build_norm_map(listA_raw, case_sensitive)
 norm_map_B = build_norm_map(listB_raw, case_sensitive)
 
-
-# -----------------------------
 # Set Operations
-# -----------------------------
 inter_norm = setA_norm & setB_norm
 A_only_norm = setA_norm - setB_norm
 B_only_norm = setB_norm - setA_norm
@@ -149,40 +192,34 @@ if sort_results:
 
 
 # -----------------------------
-# Summary Metrics
+# Results Section
 # -----------------------------
+st.divider()
 st.markdown("### 📊 Summary")
 
-col1, col2, col3 = st.columns(3)
-col1.metric(f"{label_a} only", len(A_only_norm))
-col2.metric("Intersection", len(inter_norm))
-col3.metric(f"{label_b} only", len(B_only_norm))
+m1, m2, m3 = st.columns(3)
+m1.metric(f"{label_a} only", len(A_only_norm))
+m2.metric("Common Items", len(inter_norm))
+m3.metric(f"{label_b} only", len(B_only_norm))
 
-
-# -----------------------------
-# Similarity Metrics
-# -----------------------------
+# Similarity Scores
 union_norm = setA_norm | setB_norm
 jaccard = len(inter_norm) / len(union_norm) if union_norm else 0.0
-
 overlap_coeff = (
     len(inter_norm) / min(len(setA_norm), len(setB_norm))
     if min(len(setA_norm), len(setB_norm)) > 0 else 0.0
 )
 
-st.markdown(
-    f"**Jaccard Similarity:** {jaccard:.3f} ({jaccard:.1%})  \n"
-    f"**Overlap Coefficient:** {overlap_coeff:.3f}"
-)
+st.info(f"**Jaccard Similarity:** {jaccard:.1%} | **Overlap Coefficient:** {overlap_coeff:.3f}")
 
 
 # -----------------------------
-# Region Explorer
+# Explorer Section
 # -----------------------------
-st.markdown("### 🔍 Explore Region")
+st.markdown("### 🔍 Explorer")
 
 region = st.radio(
-    "Select region:",
+    "Choose data to view:",
     (f"{label_a} only", "Intersection", f"{label_b} only"),
     horizontal=True
 )
@@ -194,25 +231,21 @@ elif region == "Intersection":
 else:
     selected_items = B_only
 
-
-# -----------------------------
-# Display Table
-# -----------------------------
-st.markdown(f"### 📄 Items in: {region}")
-
 if selected_items:
     df = pd.DataFrame({"Item": selected_items})
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-    make_download(region.replace(" ", "_"), selected_items)
-
-    csv_data = df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "Download CSV",
-        csv_data,
-        f"{region.replace(' ', '_')}.csv",
-        "text/csv",
-        use_container_width=True
-    )
+    d_col1, d_col2 = st.columns(2)
+    with d_col1:
+        make_download(region.replace(" ", "_"), selected_items)
+    with d_col2:
+        csv_data = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "Download CSV",
+            csv_data,
+            f"{region.replace(' ', '_')}.csv",
+            "text/csv",
+            use_container_width=True
+        )
 else:
-    st.success("✔ No items in this category.")
+    st.write("No items found in this category.")
